@@ -1,17 +1,6 @@
-pub struct Config {
-    pub alphabet: Vec<char>,
-    pub equivalence_tests: usize,
-    pub regularity_tests: usize,
-    pub pump_tests: usize,
-}
+pub const ALPHABET: &str = "abc";
+pub const EPSILON: &str = "";
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            alphabet: vec!['a', 'b', 'c'],
-            equivalence_tests: 10,
-            regularity_tests: 10,
-            pump_tests: 10,
-        }
-    }
-}
+pub const EQUIVALENCE_TESTS: usize = 10;
+pub const REGULARITY_TESTS: usize = 10;
+pub const PUMP_TESTS: usize = 10;

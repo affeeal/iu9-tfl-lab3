@@ -1,16 +1,13 @@
-use crate::config::Config;
-
 pub trait Automata {
-    fn check_belonging(&self, word: String) -> bool;
+    fn check_membership(&self, word: &str) -> bool;
 }
 
-struct AutomataImpl {
-    config: Config,
+pub struct AutomataImpl {
     // ...
 }
 
 impl Automata for AutomataImpl {
-    fn check_belonging(&self, word: String) -> bool {
+    fn check_membership(&self, word: &str) -> bool {
         todo!()
     }
 }
