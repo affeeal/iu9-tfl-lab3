@@ -52,11 +52,16 @@ impl<'a> NlImpl<'a> {
         }
     }
 
+    fn insert_suffix(&mut self, suffix: &str) {
+        self.main_table.insert_suffix(suffix);
+        self.extended_table.insert_suffix(suffix);
+    }
+
     fn check_completeness(&self) -> CompletenessCheckResult {
         let mut membership_suffixes_union = HashSet::<String>::new();
 
         for membership_suffixes in self.main_table.data.values() {
-            membership_suffixes_union.union(membership_suffixes);
+            membership_suffixes_union.extend(membership_suffixes.clone());
         }
 
         // NOTE: heuristics
