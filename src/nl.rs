@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::automata::Automata;
 use crate::config::ALPHABET;
 use crate::mat::Mat;
-use crate::nl::table::Table;
+use crate::nl::table::{Table, TableType};
 
 pub trait Nl {
     fn build_automata(&mut self) -> Box<dyn Automata>;
@@ -37,8 +37,8 @@ impl<'a> NlImpl<'a> {
     pub fn new(mat: &'a dyn Mat) -> Self {
         Self {
             mat,
-            main_table: Table::new(mat),
-            extended_table: Table::new(mat),
+            main_table: Table::new(TableType::Main, mat),
+            extended_table: Table::new(TableType::Extended, mat),
         }
     }
 
@@ -47,8 +47,7 @@ impl<'a> NlImpl<'a> {
             let new_prefix = &prefix[0..i];
 
             self.main_table.insert_prefix(new_prefix);
-            self.extended_table
-                .insert_prefix_with_joined_alphabet(new_prefix);
+            self.extended_table.insert_prefix(new_prefix);
         }
     }
 
@@ -58,8 +57,9 @@ impl<'a> NlImpl<'a> {
     }
 
     fn check_completeness(&self) -> CompletenessCheckResult {
-        let mut membership_suffixes_union = HashSet::<String>::new();
+        let mut membership_suffixes_union = HashSet::new();
 
+        // TODO: optimize union
         for membership_suffixes in self.main_table.data.values() {
             membership_suffixes_union.extend(membership_suffixes.clone());
         }
@@ -90,16 +90,12 @@ impl<'a> NlImpl<'a> {
                     let new_prefix_1 = format!("{prefix_1}{letter}");
                     let new_prefix_2 = format!("{prefix_2}{letter}");
 
-                    let new_membership_suffixes_1 = self.extended_table.data.get(&new_prefix_1);
-                    let new_membership_suffixes_2 = self.extended_table.data.get(&new_prefix_2);
+                    let new_membership_suffixes_1 =
+                        self.extended_table.data.get(&new_prefix_1).unwrap();
+                    let new_membership_suffixes_2 =
+                        self.extended_table.data.get(&new_prefix_2).unwrap();
 
-                    debug_assert!(new_membership_suffixes_1.is_some());
-                    debug_assert!(new_membership_suffixes_2.is_some());
-
-                    if !new_membership_suffixes_1
-                        .unwrap()
-                        .is_subset(new_membership_suffixes_2.unwrap())
-                    {
+                    if !new_membership_suffixes_1.is_subset(new_membership_suffixes_2) {
                         return ConsistencyCheckResult::DistinguishingSuffix(letter);
                     }
                 }
