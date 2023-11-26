@@ -30,7 +30,7 @@ enum CompletenessCheckResult {
 
 enum ConsistencyCheckResult {
     Ok,
-    DistinguishingSuffix(char),
+    DistinguishingSuffix(String),
 }
 
 impl<'a> NlImpl<'a> {
@@ -42,13 +42,15 @@ impl<'a> NlImpl<'a> {
         }
     }
 
-    fn insert_prefix(&mut self, prefix: &str) {
+    fn insert_prefix_recursive(&mut self, prefix: &str) {
         for i in 1..prefix.len() {
-            let new_prefix = &prefix[0..i];
-
-            self.main_table.insert_prefix(new_prefix);
-            self.extended_table.insert_prefix(new_prefix);
+            self.insert_prefix(&prefix[0..i]);
         }
+    }
+
+    fn insert_prefix(&mut self, prefix: &str) {
+        self.main_table.insert_prefix(prefix);
+        self.extended_table.insert_prefix(prefix);
     }
 
     fn insert_suffix(&mut self, suffix: &str) {
@@ -95,13 +97,29 @@ impl<'a> NlImpl<'a> {
                     let new_membership_suffixes_2 =
                         self.extended_table.data.get(&new_prefix_2).unwrap();
 
-                    if !new_membership_suffixes_1.is_subset(new_membership_suffixes_2) {
-                        return ConsistencyCheckResult::DistinguishingSuffix(letter);
+                    // NOTE: если new_membership_suffixes_1 подмножество new_membership_suffixes_2,
+                    // то разность - пустое множество, и мы не итерируемся. Иначе в разности лежит
+                    // "различающий" суффикс. Пока не понятно, может ли быть в разности более
+                    // одного такого суффикса, но здесь в любом случае обрабатывается лишь первый.
+                    for suffix in new_membership_suffixes_1.difference(&new_membership_suffixes_2) {
+                        return ConsistencyCheckResult::DistinguishingSuffix(format!(
+                            "{letter}{suffix}"
+                        ));
                     }
                 }
             }
         }
 
         ConsistencyCheckResult::Ok
+    }
+
+    fn fix_completeness(&mut self, uncovered_prefix: &str) {
+        // NOTE: Вставка ведь со всеми префиксами?
+        self.main_table.insert_prefix(uncovered_prefix);
+    }
+
+    fn fix_consistency(&mut self, distinguishing_suffix: &str) {
+        self.main_table.insert_suffix(distinguishing_suffix);
+        self.extended_table.insert_suffix(distinguishing_suffix);
     }
 }
