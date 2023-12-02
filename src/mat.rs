@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::automata::Automata;
 
 pub enum EquivalenceCheckResult {

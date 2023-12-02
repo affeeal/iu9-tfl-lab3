@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub trait Automata {
     fn check_membership(&self, word: &str) -> bool;
 

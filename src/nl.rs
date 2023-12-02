@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod table;
 
 use std::collections::HashSet;
@@ -6,6 +8,8 @@ use crate::automata::Automata;
 use crate::config::ALPHABET;
 use crate::mat::Mat;
 use crate::nl::table::{Table, TableType};
+
+// TODO: оптимизировать итерации в check_consistency
 
 pub trait Nl {
     fn build_automata(&mut self) -> Box<dyn Automata>;
@@ -59,20 +63,8 @@ impl<'a> NlImpl<'a> {
     }
 
     fn check_completeness(&self) -> CompletenessCheckResult {
-        let mut membership_suffixes_union = HashSet::new();
-
-        // TODO: optimize union
-        for membership_suffixes in self.main_table.data.values() {
-            membership_suffixes_union.extend(membership_suffixes.clone());
-        }
-
-        // NOTE: heuristics
-        if membership_suffixes_union.len() == self.main_table.suffixes.len() {
-            return CompletenessCheckResult::Ok;
-        }
-
-        for (prefix, membership_suffixes) in &self.extended_table.data {
-            if !membership_suffixes.is_subset(&membership_suffixes_union) {
+        for prefix in &self.extended_table.prefixes {
+            if !self.is_covered(prefix) {
                 return CompletenessCheckResult::UncoveredPrefix(prefix.to_string());
             }
         }
@@ -80,10 +72,35 @@ impl<'a> NlImpl<'a> {
         CompletenessCheckResult::Ok
     }
 
+    fn is_covered(&self, prefix: &str) -> bool {
+        let membership_suffixes = self.extended_table.by_prefixes.get(prefix).unwrap();
+        let non_membership_suffixes = self.main_table.suffixes.difference(membership_suffixes);
+
+        let mut non_membership_prefixes = HashSet::new();
+        for suffix in non_membership_suffixes {
+            let membership_prefixes = self.main_table.by_suffixes.get(suffix).unwrap();
+            for prefix in membership_prefixes {
+                non_membership_prefixes.insert(prefix.to_string());
+            }
+        }
+
+        for suffix in membership_suffixes {
+            let membership_prefixes = self.main_table.by_suffixes.get(suffix).unwrap();
+            if membership_prefixes
+                .difference(&non_membership_prefixes)
+                .next()
+                .is_none()
+            {
+                return false;
+            }
+        }
+
+        true
+    }
+
     fn check_consistency(&self) -> ConsistencyCheckResult {
-        // TODO: optimize iteration
-        for (prefix_1, membership_suffixes_1) in &self.main_table.data {
-            for (prefix_2, mebership_suffixes_2) in &self.main_table.data {
+        for (prefix_1, membership_suffixes_1) in &self.main_table.by_prefixes {
+            for (prefix_2, mebership_suffixes_2) in &self.main_table.by_prefixes {
                 if !membership_suffixes_1.is_subset(mebership_suffixes_2) {
                     continue;
                 }
@@ -93,18 +110,16 @@ impl<'a> NlImpl<'a> {
                     let new_prefix_2 = format!("{prefix_2}{letter}");
 
                     let new_membership_suffixes_1 =
-                        self.extended_table.data.get(&new_prefix_1).unwrap();
+                        self.extended_table.by_prefixes.get(&new_prefix_1).unwrap();
                     let new_membership_suffixes_2 =
-                        self.extended_table.data.get(&new_prefix_2).unwrap();
+                        self.extended_table.by_prefixes.get(&new_prefix_2).unwrap();
 
-                    // NOTE: если new_membership_suffixes_1 подмножество new_membership_suffixes_2,
-                    // то разность - пустое множество, и мы не итерируемся. Иначе в разности лежит
-                    // "различающий" суффикс. Пока не понятно, может ли быть в разности более
-                    // одного такого суффикса, но здесь в любом случае обрабатывается лишь первый.
-                    for suffix in new_membership_suffixes_1.difference(&new_membership_suffixes_2) {
-                        return ConsistencyCheckResult::DistinguishingSuffix(format!(
-                            "{letter}{suffix}"
-                        ));
+                    if let Some(suffix) = new_membership_suffixes_1
+                        .difference(new_membership_suffixes_2)
+                        .next()
+                    {
+                        let distinguishing_suffix = format!("{letter}{suffix}");
+                        return ConsistencyCheckResult::DistinguishingSuffix(distinguishing_suffix);
                     }
                 }
             }
@@ -114,12 +129,14 @@ impl<'a> NlImpl<'a> {
     }
 
     fn fix_completeness(&mut self, uncovered_prefix: &str) {
-        // NOTE: Вставка ведь со всеми префиксами?
-        self.main_table.insert_prefix(uncovered_prefix);
+        self.insert_prefix(uncovered_prefix);
     }
 
     fn fix_consistency(&mut self, distinguishing_suffix: &str) {
-        self.main_table.insert_suffix(distinguishing_suffix);
-        self.extended_table.insert_suffix(distinguishing_suffix);
+        self.insert_suffix(distinguishing_suffix);
+    }
+
+    fn build_rfsa(&self) -> Box<dyn Automata> {
+        todo!()
     }
 }
