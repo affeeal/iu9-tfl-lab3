@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use crate::automata::Automata;
 use crate::config::ALPHABET;
-use crate::mat::Mat;
+use crate::mat::{EquivalenceCheckResult, Mat};
 use crate::nl::table::{Table, TableType};
 
 // TODO: оптимизировать итерации в check_consistency
@@ -23,7 +23,29 @@ pub struct NlImpl<'a> {
 
 impl<'a> Nl for NlImpl<'a> {
     fn build_automata(&mut self) -> Box<dyn Automata> {
-        todo!()
+        loop {
+            if let CompletenessCheckResult::UncoveredPrefix(prefix) = self.check_completeness() {
+                self.insert_prefix(&prefix);
+                continue;
+            }
+
+            if let ConsistencyCheckResult::DistinguishingSuffix(suffix) = self.check_consistency() {
+                self.insert_suffix(&suffix);
+                continue;
+            }
+
+            let rfsa = self.build_rfsa();
+            let dfsa = rfsa.determinize();
+
+            if let EquivalenceCheckResult::Counterexample(word) =
+                self.mat.check_equivalence(dfsa.as_ref())
+            {
+                self.insert_prefix_recursive(&word);
+                continue;
+            }
+
+            break dfsa;
+        }
     }
 }
 
@@ -126,14 +148,6 @@ impl<'a> NlImpl<'a> {
         }
 
         ConsistencyCheckResult::Ok
-    }
-
-    fn fix_completeness(&mut self, uncovered_prefix: &str) {
-        self.insert_prefix(uncovered_prefix);
-    }
-
-    fn fix_consistency(&mut self, distinguishing_suffix: &str) {
-        self.insert_suffix(distinguishing_suffix);
     }
 
     fn build_rfsa(&self) -> Box<dyn Automata> {
