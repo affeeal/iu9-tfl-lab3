@@ -1,13 +1,15 @@
 #![allow(dead_code)]
 
-mod table;
+mod extended_table;
+mod main_table;
 
 use std::collections::HashSet;
 
 use crate::automata::Automata;
 use crate::config::ALPHABET;
 use crate::mat::{EquivalenceCheckResult, Mat};
-use crate::nl::table::{Table, TableType};
+use crate::nl::extended_table::ExtendedTable;
+use crate::nl::main_table::MainTable;
 
 // TODO: оптимизировать итерации в check_consistency
 
@@ -17,8 +19,8 @@ pub trait Nl {
 
 pub struct NlImpl<'a> {
     mat: &'a dyn Mat,
-    main_table: Table<'a>,
-    extended_table: Table<'a>,
+    main_table: MainTable<'a>,
+    extended_table: ExtendedTable<'a>,
 }
 
 impl<'a> Nl for NlImpl<'a> {
@@ -63,8 +65,8 @@ impl<'a> NlImpl<'a> {
     pub fn new(mat: &'a dyn Mat) -> Self {
         Self {
             mat,
-            main_table: Table::new(TableType::Main, mat),
-            extended_table: Table::new(TableType::Extended, mat),
+            main_table: MainTable::new(mat),
+            extended_table: ExtendedTable::new(mat),
         }
     }
 
