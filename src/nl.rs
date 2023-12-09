@@ -3,8 +3,6 @@
 mod extended_table;
 mod main_table;
 
-use std::collections::HashSet;
-
 use crate::automata::Automata;
 use crate::config::ALPHABET;
 use crate::mat::{EquivalenceCheckResult, Mat};
@@ -88,43 +86,22 @@ impl<'a> NlImpl<'a> {
 
     fn check_completeness(&self) -> CompletenessCheckResult {
         for prefix in &self.extended_table.prefixes {
-            if !self.is_covered(prefix) {
-                return CompletenessCheckResult::UncoveredPrefix(prefix.to_string());
+            let membership_suffixes = self
+                .main_table
+                .prefix_to_membership_suffixes
+                .get(prefix)
+                .unwrap();
+            if !self.main_table.is_covered(prefix, membership_suffixes) {
+                return CompletenessCheckResult::UncoveredPrefix(prefix.to_owned());
             }
         }
 
         CompletenessCheckResult::Ok
     }
 
-    fn is_covered(&self, prefix: &str) -> bool {
-        let membership_suffixes = self.extended_table.by_prefixes.get(prefix).unwrap();
-        let non_membership_suffixes = self.main_table.suffixes.difference(membership_suffixes);
-
-        let mut non_membership_prefixes = HashSet::new();
-        for suffix in non_membership_suffixes {
-            let membership_prefixes = self.main_table.by_suffixes.get(suffix).unwrap();
-            for prefix in membership_prefixes {
-                non_membership_prefixes.insert(prefix.to_string());
-            }
-        }
-
-        for suffix in membership_suffixes {
-            let membership_prefixes = self.main_table.by_suffixes.get(suffix).unwrap();
-            if membership_prefixes
-                .difference(&non_membership_prefixes)
-                .next()
-                .is_none()
-            {
-                return false;
-            }
-        }
-
-        true
-    }
-
     fn check_consistency(&self) -> ConsistencyCheckResult {
-        for (prefix_1, membership_suffixes_1) in &self.main_table.by_prefixes {
-            for (prefix_2, mebership_suffixes_2) in &self.main_table.by_prefixes {
+        for (prefix_1, membership_suffixes_1) in &self.main_table.prefix_to_membership_suffixes {
+            for (prefix_2, mebership_suffixes_2) in &self.main_table.prefix_to_membership_suffixes {
                 if !membership_suffixes_1.is_subset(mebership_suffixes_2) {
                     continue;
                 }
@@ -133,10 +110,16 @@ impl<'a> NlImpl<'a> {
                     let new_prefix_1 = format!("{prefix_1}{letter}");
                     let new_prefix_2 = format!("{prefix_2}{letter}");
 
-                    let new_membership_suffixes_1 =
-                        self.extended_table.by_prefixes.get(&new_prefix_1).unwrap();
-                    let new_membership_suffixes_2 =
-                        self.extended_table.by_prefixes.get(&new_prefix_2).unwrap();
+                    let new_membership_suffixes_1 = self
+                        .extended_table
+                        .prefix_to_membership_suffixes
+                        .get(&new_prefix_1)
+                        .unwrap();
+                    let new_membership_suffixes_2 = self
+                        .extended_table
+                        .prefix_to_membership_suffixes
+                        .get(&new_prefix_2)
+                        .unwrap();
 
                     if let Some(suffix) = new_membership_suffixes_1
                         .difference(new_membership_suffixes_2)

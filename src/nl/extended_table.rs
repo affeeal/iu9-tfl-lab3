@@ -4,14 +4,14 @@ use std::collections::HashSet;
 use crate::config::{ALPHABET, EPSILON};
 use crate::mat::Mat;
 
-// TODO? хранить в значениях by_prefixes не строки, а ссылки;
-// TODO? использовать BTreeSet заместо HashSet для ускорения булевых операций;
+// TODO? хранить в значениях prefix_to_membership_suffixes не строки, а std::rc::Rc;
+// TODO? использовать std::collections::BTreeSet для ускорения булевых операций;
 
 pub struct ExtendedTable<'a> {
     mat: &'a dyn Mat,
     pub prefixes: HashSet<String>,
     pub suffixes: HashSet<String>,
-    pub by_prefixes: HashMap<String, HashSet<String>>,
+    pub prefix_to_membership_suffixes: HashMap<String, HashSet<String>>,
 }
 
 impl<'a> ExtendedTable<'a> {
@@ -20,7 +20,7 @@ impl<'a> ExtendedTable<'a> {
             mat,
             prefixes: HashSet::new(),
             suffixes: HashSet::new(),
-            by_prefixes: HashMap::new(),
+            prefix_to_membership_suffixes: HashMap::new(),
         };
 
         table.insert_prefix(EPSILON);
@@ -40,30 +40,30 @@ impl<'a> ExtendedTable<'a> {
         if self.prefixes.contains(prefix) {
             return;
         }
-        self.prefixes.insert(prefix.to_string());
+        self.prefixes.insert(prefix.to_owned());
 
         let mut membership_suffixes = HashSet::new();
         for suffix in &self.suffixes {
             let word = format!("{prefix}{suffix}");
             if self.mat.check_membership(&word) {
-                membership_suffixes.insert(suffix.to_string());
+                membership_suffixes.insert(suffix.to_owned());
             }
         }
 
-        self.by_prefixes
-            .insert(prefix.to_string(), membership_suffixes);
+        self.prefix_to_membership_suffixes
+            .insert(prefix.to_owned(), membership_suffixes);
     }
 
     pub fn insert_suffix(&mut self, suffix: &str) {
         if self.suffixes.contains(suffix) {
             return;
         }
-        self.suffixes.insert(suffix.to_string());
+        self.suffixes.insert(suffix.to_owned());
 
-        for (prefix, membership_suffixes) in &mut self.by_prefixes {
+        for (prefix, membership_suffixes) in &mut self.prefix_to_membership_suffixes {
             let word = format!("{prefix}{suffix}");
             if self.mat.check_membership(&word) {
-                membership_suffixes.insert(suffix.to_string());
+                membership_suffixes.insert(suffix.to_owned());
             }
         }
     }
