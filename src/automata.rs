@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub const START: usize = 0;
+
 pub trait Automata {
     fn check_membership(&self, word: &str) -> bool;
 
@@ -8,9 +10,9 @@ pub trait Automata {
 
 pub struct AutomataImpl {
     pub size: usize,
-    pub transition_matrix: Vec<Vec<Option<char>>>,
-    start_states: Vec<bool>,
-    finite_states: Vec<bool>,
+    pub transitions: Vec<Vec<Option<String>>>,
+    pub start_states: Vec<bool>,
+    pub finite_states: Vec<bool>,
 }
 
 impl Automata for AutomataImpl {
@@ -24,15 +26,19 @@ impl Automata for AutomataImpl {
 }
 
 impl AutomataImpl {
-    pub fn new(size: usize) -> AutomataImpl {
-        todo!()
-    }
+    pub fn new(size: usize) -> Self {
+        let mut start_states = vec![false; size];
+        start_states[START] = true;
 
-    pub fn is_start_state(state: usize) -> bool {
-        todo!()
-    }
+        let transition_matrix = vec![vec![None; size]; size];
 
-    pub fn is_finite_state(&self, state: usize) -> bool {
-        todo!()
+        let finite_states = vec![false; size];
+
+        Self {
+            start_states,
+            transitions: transition_matrix,
+            finite_states,
+            size,
+        }
     }
 }

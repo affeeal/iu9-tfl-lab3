@@ -3,8 +3,10 @@
 mod extended_table;
 mod main_table;
 
-use crate::automata::Automata;
-use crate::config::ALPHABET;
+use std::collections::HashMap;
+
+use crate::automata::{Automata, AutomataImpl, START};
+use crate::config::{ALPHABET, EPSILON};
 use crate::mat::{EquivalenceCheckResult, Mat};
 use crate::nl::extended_table::ExtendedTable;
 use crate::nl::main_table::MainTable;
@@ -34,7 +36,7 @@ impl<'a> Nl for NlImpl<'a> {
                 continue;
             }
 
-            let rfsa = self.build_rfsa();
+            let rfsa = self.build_automata();
             let dfsa = rfsa.determinize();
 
             if let EquivalenceCheckResult::Counterexample(word) =
@@ -135,7 +137,61 @@ impl<'a> NlImpl<'a> {
         ConsistencyCheckResult::Ok
     }
 
-    fn build_rfsa(&self) -> Box<dyn Automata> {
-        todo!()
+    fn build_automata(&self) -> Box<dyn Automata> {
+        let mut automata = AutomataImpl::new(self.main_table.basic_prefixes.len() + 1);
+        let prefix_to_index = self.enumerate_basic_prefixes();
+
+        let epsilon_absorbed_prefixes = self.main_table.get_absorbed_basic_prefixes(
+            self.main_table
+                .prefix_to_membership_suffixes
+                .get(EPSILON)
+                .unwrap(),
+        );
+        for prefix in &epsilon_absorbed_prefixes {
+            let prefix_index = prefix_to_index.get(prefix).unwrap();
+            automata.transitions[START][*prefix_index] = Some(EPSILON.to_owned());
+        }
+
+        for prefix in &self.main_table.basic_prefixes {
+            let prefix_index = prefix_to_index.get(prefix).unwrap();
+            for letter in ALPHABET.chars() {
+                let prefix_extension = format!("{prefix}{letter}");
+                let extension_absorbed_prefixes = self.main_table.get_absorbed_basic_prefixes(
+                    self.extended_table
+                        .prefix_to_membership_suffixes
+                        .get(&prefix_extension)
+                        .unwrap(),
+                );
+                for absorbed_prefix in &extension_absorbed_prefixes {
+                    let absorbed_prefix_index = prefix_to_index.get(absorbed_prefix).unwrap();
+                    automata.transitions[*prefix_index][*absorbed_prefix_index] =
+                        Some(letter.to_string());
+                }
+            }
+        }
+
+        let epsilon_membership_basic_prefixes = self
+            .main_table
+            .suffix_to_membership_prefixes
+            .get(EPSILON)
+            .unwrap()
+            .intersection(&self.main_table.basic_prefixes);
+        for prefix in epsilon_membership_basic_prefixes {
+            let prefix_index = prefix_to_index.get(prefix).unwrap();
+            automata.finite_states[*prefix_index] = true;
+        }
+
+        Box::new(automata)
+    }
+
+    fn enumerate_basic_prefixes(&self) -> HashMap<String, usize> {
+        let mut basic_prefix_to_index = HashMap::new();
+
+        // Индекс 0 зарезервирован для стартового состояния
+        for (i, prefix) in self.main_table.basic_prefixes.iter().enumerate() {
+            basic_prefix_to_index.insert(prefix.to_owned(), i + 1);
+        }
+
+        basic_prefix_to_index
     }
 }

@@ -150,4 +150,24 @@ impl<'a> MainTable<'a> {
         self.suffix_to_membership_prefixes
             .insert(suffix.to_owned(), membership_prefixes);
     }
+
+    // NOTE: наивная реализация.
+    pub fn get_absorbed_basic_prefixes(
+        &self,
+        source_membership_suffixes: &HashSet<String>,
+    ) -> HashSet<String> {
+        let mut absorbed_basic_prefixes = HashSet::new();
+
+        for basic_prefix in &self.basic_prefixes {
+            let membership_suffixes = self
+                .prefix_to_membership_suffixes
+                .get(basic_prefix)
+                .unwrap();
+            if membership_suffixes.is_subset(source_membership_suffixes) {
+                absorbed_basic_prefixes.insert(basic_prefix.to_owned());
+            }
+        }
+
+        absorbed_basic_prefixes
+    }
 }
