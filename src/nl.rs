@@ -5,7 +5,7 @@ mod main_table;
 
 use std::collections::HashMap;
 
-use crate::automata::{Automata, AutomataImpl, START};
+use crate::automata::{Automata, AutomataImpl, START_STATE};
 use crate::config::{ALPHABET, EPSILON};
 use crate::mat::{EquivalenceCheckResult, Mat};
 use crate::nl::extended_table::ExtendedTable;
@@ -149,7 +149,7 @@ impl<'a> NlImpl<'a> {
         );
         for prefix in &epsilon_absorbed_prefixes {
             let prefix_index = prefix_to_index.get(prefix).unwrap();
-            automata.transitions[START][*prefix_index] = Some(EPSILON.to_owned());
+            automata.transitions[START_STATE][*prefix_index] = Some(EPSILON.to_owned());
         }
 
         for prefix in &self.main_table.basic_prefixes {

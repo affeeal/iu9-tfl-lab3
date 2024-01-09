@@ -1,11 +1,16 @@
 #![allow(dead_code)]
 
-pub const START: usize = 0;
+pub const START_STATE: usize = 0;
 
 pub trait Automata {
     fn check_membership(&self, word: &str) -> bool;
 
     fn determinize(&self) -> Box<dyn Automata>;
+
+    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata>;
+
+    // Получить дополнение для ДКА. Для НКА результат неопределён.
+    fn get_complement(&self) -> Box<dyn Automata>;
 }
 
 pub struct AutomataImpl {
@@ -23,12 +28,20 @@ impl Automata for AutomataImpl {
     fn determinize(&self) -> Box<dyn Automata> {
         todo!()
     }
+
+    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata> {
+        todo!()
+    }
+
+    fn get_complement(&self) -> Box<dyn Automata> {
+        todo!()
+    }
 }
 
 impl AutomataImpl {
     pub fn new(size: usize) -> Self {
         let mut start_states = vec![false; size];
-        start_states[START] = true;
+        start_states[START_STATE] = true;
 
         let transition_matrix = vec![vec![None; size]; size];
 
