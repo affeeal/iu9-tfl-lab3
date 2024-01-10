@@ -1,21 +1,25 @@
 #![allow(dead_code)]
 
+use std::any::Any;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
-use crate::config::{ALPHABET, EPSILON};
+use crate::config::EPSILON;
 
 pub const START_STATE: usize = 0;
 
 pub trait Automata {
+    fn as_any(&self) -> &dyn Any;
+
     fn check_membership(&self, word: &str) -> bool;
 
     fn determinize(&self) -> Box<dyn Automata>;
 
-    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata>;
-
     fn get_complement(&self) -> Box<dyn Automata>;
+
+    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata>;
 }
 
+#[derive(Debug, PartialEq)]
 pub struct AutomataImpl {
     pub size: usize,
     pub transitions: Vec<Vec<Option<String>>>,
@@ -24,6 +28,10 @@ pub struct AutomataImpl {
 }
 
 impl Automata for AutomataImpl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn check_membership(&self, word: &str) -> bool {
         todo!()
     }
@@ -41,8 +49,9 @@ impl Automata for AutomataImpl {
         let mut state_to_subset = HashMap::from([(START_STATE, start_subset)]);
         let mut state_counter = START_STATE + 1;
         let mut states_to_visit = VecDeque::from([START_STATE]);
-        let mut transitions = HashSet::<Transition>::new();
+
         let mut finite_states = HashSet::<usize>::new();
+        let mut transitions = HashSet::<Transition>::new();
 
         while let Some(state) = states_to_visit.pop_front() {
             let mut label_to_subset = HashMap::<String, BTreeSet<usize>>::new();
@@ -96,9 +105,9 @@ impl Automata for AutomataImpl {
 
         let mut automata = Self::new(state_counter);
 
-        for t in transitions {
-            automata.transitions[t.from][t.to] = Some(t.label.to_owned());
-            automata.transitions[t.to][t.from] = Some(t.label.to_owned());
+        for transition in transitions {
+            automata.transitions[transition.from][transition.to] =
+                Some(transition.label.to_owned());
         }
 
         for state in finite_states {
@@ -108,11 +117,11 @@ impl Automata for AutomataImpl {
         Box::new(automata)
     }
 
-    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata> {
+    fn get_complement(&self) -> Box<dyn Automata> {
         todo!()
     }
 
-    fn get_complement(&self) -> Box<dyn Automata> {
+    fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata> {
         todo!()
     }
 }
@@ -132,31 +141,6 @@ impl AutomataImpl {
             finite_states,
             size,
         }
-    }
-
-    fn is_finite(&self, state: usize) -> bool {
-        let mut visited_states = HashSet::<usize>::new();
-        let mut states_to_visit = VecDeque::from([state]);
-
-        while let Some(state) = states_to_visit.pop_front() {
-            if self.finite_states[state] {
-                return true;
-            }
-
-            visited_states.insert(state);
-            for (next_state, letter) in self.transitions[state].iter().enumerate() {
-                if letter.is_none() {
-                    continue;
-                }
-
-                let letter = &letter.as_ref().unwrap();
-                if letter.eq(&EPSILON) && !visited_states.contains(&next_state) {
-                    states_to_visit.push_back(next_state);
-                }
-            }
-        }
-
-        false
     }
 
     fn get_epsilon_closure(&self, subset: &BTreeSet<usize>) -> BTreeSet<usize> {
@@ -189,5 +173,117 @@ impl AutomataImpl {
         }
 
         visited_states
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::{Automata, AutomataImpl};
+
+    #[test]
+    fn dfa() {
+        let mut source = AutomataImpl::new(5);
+
+        let a = Some("a".to_string());
+        let b = Some("b".to_string());
+        let c = Some("c".to_string());
+
+        source.transitions = vec![
+            vec![None, c.clone(), b.clone(), None, None],
+            vec![None, None, b.clone(), None, None],
+            vec![None, a.clone(), None, c.clone(), b.clone()],
+            vec![None, None, None, None, a.clone()],
+            vec![None, None, None, None, None],
+        ];
+
+        source.finite_states[1] = true;
+        source.finite_states[4] = true;
+
+        let result = source.determinize();
+        // TODO: check isomorphism?
+    }
+
+    #[test]
+    fn nfa() {
+        let mut source = AutomataImpl::new(10);
+
+        let a = Some("a".to_string());
+        let b = Some("b".to_string());
+        let epsilon = Some("".to_string());
+
+        source.transitions = vec![
+            vec![
+                None,
+                a.clone(),
+                None,
+                None,
+                b.clone(),
+                None,
+                None,
+                epsilon.clone(),
+                a.clone(),
+                b.clone(),
+            ],
+            vec![
+                None,
+                a.clone(),
+                a.clone(),
+                b.clone(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![
+                None,
+                epsilon.clone(),
+                None,
+                b.clone(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            vec![
+                None,
+                None,
+                None,
+                None,
+                b.clone(),
+                a.clone(),
+                b.clone(),
+                None,
+                None,
+                None,
+            ],
+            vec![
+                None,
+                None,
+                None,
+                None,
+                epsilon.clone(),
+                a.clone(),
+                None,
+                None,
+                None,
+                None,
+            ],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+        ];
+
+        source.finite_states = vec![
+            false, false, true, false, false, false, true, true, true, true,
+        ];
+
+        let result = source.determinize();
+        // TODO: check isomorphism?
     }
 }
