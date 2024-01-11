@@ -3,7 +3,7 @@
 use std::any::Any;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
-use crate::config::EPSILON;
+use crate::config::{get_alphabet_as_hashset, ALPHABET, EPSILON};
 
 pub const START_STATE: usize = 0;
 
@@ -14,12 +14,13 @@ pub trait Automata {
 
     fn determinize(&self) -> Box<dyn Automata>;
 
+    // NOTE: применяется на ДКА. Результат для НКА некорректный.
     fn get_complement(&self) -> Box<dyn Automata>;
 
     fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata>;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AutomataImpl {
     pub size: usize,
     pub transitions: Vec<Vec<Option<String>>>,
@@ -118,7 +119,66 @@ impl Automata for AutomataImpl {
     }
 
     fn get_complement(&self) -> Box<dyn Automata> {
-        todo!()
+        let mut absent_labels = vec![get_alphabet_as_hashset(); self.size];
+        for (state, row) in self.transitions.iter().enumerate() {
+            for label in row {
+                if label.is_none() {
+                    continue;
+                }
+
+                let label = label.as_ref().unwrap();
+                absent_labels[state].remove(label);
+            }
+        }
+
+        let mut traps_needed = false;
+        for absent_labels in &absent_labels {
+            if !absent_labels.is_empty() {
+                traps_needed = true;
+                break;
+            }
+        }
+
+        let mut complement = self.clone();
+        if traps_needed {
+            let traps_size = ALPHABET.len();
+            let mut label_to_state = HashMap::<String, usize>::with_capacity(traps_size);
+            for (state, label) in ALPHABET.chars().enumerate() {
+                label_to_state.insert(label.to_string(), state);
+            }
+
+            for (state, row) in complement.transitions.iter_mut().enumerate() {
+                let mut transitions_to_traps = vec![None::<String>; traps_size];
+                for label in &absent_labels[state] {
+                    let trap_state = label_to_state.get(label).unwrap();
+                    transitions_to_traps[*trap_state] = Some(label.to_owned());
+                }
+                row.append(&mut transitions_to_traps);
+            }
+
+            let mut trap_transitions = vec![None::<String>; complement.size + traps_size];
+            for (label, state) in &label_to_state {
+                trap_transitions[complement.size + state] = Some(label.to_owned());
+            }
+
+            for _ in 0..traps_size {
+                complement.transitions.push(trap_transitions.clone());
+            }
+
+            complement.size += traps_size;
+            complement.start_states.append(&mut vec![false; traps_size]);
+            complement
+                .finite_states
+                .append(&mut vec![false; traps_size]);
+        }
+
+        let mut inverted_finite_states = Vec::<bool>::with_capacity(complement.finite_states.len());
+        for is_finite in &complement.finite_states {
+            inverted_finite_states.push(!is_finite);
+        }
+        complement.finite_states = inverted_finite_states;
+
+        Box::new(complement)
     }
 
     fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata> {
@@ -181,7 +241,7 @@ pub mod tests {
     use super::{Automata, AutomataImpl};
 
     #[test]
-    fn dfa() {
+    fn determinisation_dfa() {
         let mut source = AutomataImpl::new(5);
 
         let a = Some("a".to_string());
@@ -204,7 +264,7 @@ pub mod tests {
     }
 
     #[test]
-    fn nfa() {
+    fn determinisation_nfa() {
         let mut source = AutomataImpl::new(10);
 
         let a = Some("a".to_string());
@@ -285,5 +345,64 @@ pub mod tests {
 
         let result = source.determinize();
         // TODO: check isomorphism?
+    }
+
+    #[test]
+    fn complement_no_traps_added() {
+        let mut input = AutomataImpl::new(4);
+
+        let a = Some("a".to_string());
+        let b = Some("b".to_string());
+        let c = Some("c".to_string());
+
+        input.transitions[0][1] = a.to_owned();
+        input.transitions[0][2] = b.to_owned();
+        input.transitions[0][3] = c.to_owned();
+
+        input.transitions[1][0] = a.to_owned();
+        input.transitions[1][2] = b.to_owned();
+        input.transitions[1][3] = c.to_owned();
+
+        input.transitions[2][0] = b.to_owned();
+        input.transitions[2][1] = a.to_owned();
+        input.transitions[2][3] = c.to_owned();
+
+        input.transitions[3][0] = c.to_owned();
+        input.transitions[3][1] = a.to_owned();
+        input.transitions[3][2] = b.to_owned();
+
+        input.finite_states = vec![true, false, true, false];
+
+        let mut expected_output = input.clone();
+        expected_output.finite_states = vec![false, true, false, true];
+
+        let output = input.get_complement();
+
+        assert_eq!(
+            *output.as_any().downcast_ref::<AutomataImpl>().unwrap(),
+            expected_output
+        );
+    }
+
+    #[test]
+    fn complement_traps_added() {
+        let mut input = AutomataImpl::new(4);
+
+        let a = Some("a".to_string());
+        let b = Some("b".to_string());
+        let c = Some("c".to_string());
+
+        input.transitions[0][1] = a.to_owned();
+        input.transitions[0][2] = b.to_owned();
+        input.transitions[0][3] = c.to_owned();
+
+        input.transitions[1][0] = a.to_owned();
+
+        input.transitions[3][0] = c.to_owned();
+        input.transitions[3][2] = b.to_owned();
+
+        input.finite_states = vec![true, false, true, false];
+
+        todo!()
     }
 }
