@@ -93,6 +93,3 @@ fn main() {
     println!("{}",mat.check_membership("gattaca"));
     println!("{:#?}",grammar.generate());
 }
-
-
-
