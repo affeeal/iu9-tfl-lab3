@@ -1,11 +1,11 @@
 use crate::{config::PUMP_TESTS, mat::Mat};
 
 pub struct ShatteredWord {
-    w1: String,
-    w2: String,
-    w3: String,
-    w4: String,
-    w5: String,
+    pub w1: String,
+    pub w2: String,
+    pub w3: String,
+    pub w4: String,
+    pub w5: String,
 }
 
 pub trait Pumper {
@@ -13,7 +13,7 @@ pub trait Pumper {
 }
 
 pub struct PumperImpl<'a> {
-    mat: &'a dyn Mat,
+    pub mat: &'a dyn Mat,
 }
 
 impl<'a> Pumper for PumperImpl<'a> {

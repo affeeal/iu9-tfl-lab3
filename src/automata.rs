@@ -7,6 +7,11 @@ use crate::config::{get_alphabet_as_hashset, ALPHABET, EPSILON};
 
 pub const START_STATE: usize = 0;
 
+pub mod reachability;
+pub mod str_generator;
+
+pub const START: usize = 0;
+
 pub trait Automata {
     fn as_any(&self) -> &dyn Any;
 
@@ -18,6 +23,8 @@ pub trait Automata {
     fn get_complement(&self) -> Box<dyn Automata>;
 
     fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata>;
+
+    fn generate_word(&self) -> String;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -184,6 +191,11 @@ impl Automata for AutomataImpl {
     fn intersect(&self, other: &dyn Automata) -> Box<dyn Automata> {
         todo!()
     }
+
+    fn generate_word(&self) -> String {
+
+        todo!();
+    }
 }
 
 impl AutomataImpl {
@@ -233,6 +245,21 @@ impl AutomataImpl {
         }
 
         visited_states
+    }
+
+    pub fn is_start_state(&self, i: usize) -> bool {
+        return self.start_states[i];
+    }
+
+    pub fn is_finite_state(&self, i: usize) -> bool {
+        return self.finite_states[i];
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 1
+            && self.is_start_state(START)
+            && self.transitions[START][START].is_none()
+            && !self.is_finite_state(START)
     }
 }
 
