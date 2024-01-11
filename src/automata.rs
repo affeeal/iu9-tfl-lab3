@@ -193,7 +193,6 @@ impl Automata for AutomataImpl {
     }
 
     fn generate_word(&self) -> String {
-
         todo!();
     }
 }
@@ -414,56 +413,56 @@ pub mod tests {
     #[test]
     pub fn complement_traps_added() {
         let mut input = AutomataImpl::new(4);
-    
+
         let a = Some("a".to_string());
         let b = Some("b".to_string());
         let c = Some("c".to_string());
-    
+
         input.transitions[0][1] = a.to_owned();
         input.transitions[0][2] = b.to_owned();
         input.transitions[0][3] = c.to_owned();
-    
+
         input.transitions[1][0] = a.to_owned();
-    
+
         input.transitions[3][0] = c.to_owned();
         input.transitions[3][2] = b.to_owned();
-    
+
         input.finite_states = vec![true, false, true, false];
-    
+
         let mut expected_output = AutomataImpl::new(7);
-    
+
         expected_output.transitions[0][1] = a.to_owned();
         expected_output.transitions[0][2] = b.to_owned();
         expected_output.transitions[0][3] = c.to_owned();
-    
+
         expected_output.transitions[1][0] = a.to_owned();
         expected_output.transitions[1][5] = b.to_owned();
         expected_output.transitions[1][6] = c.to_owned();
-    
+
         expected_output.transitions[2][4] = a.to_owned();
         expected_output.transitions[2][5] = b.to_owned();
         expected_output.transitions[2][6] = c.to_owned();
-    
+
         expected_output.transitions[3][0] = c.to_owned();
         expected_output.transitions[3][2] = b.to_owned();
         expected_output.transitions[3][4] = a.to_owned();
-    
+
         expected_output.transitions[4][4] = a.to_owned();
         expected_output.transitions[4][5] = b.to_owned();
         expected_output.transitions[4][6] = c.to_owned();
-    
+
         expected_output.transitions[5][4] = a.to_owned();
         expected_output.transitions[5][5] = b.to_owned();
         expected_output.transitions[5][6] = c.to_owned();
-    
+
         expected_output.transitions[6][4] = a.to_owned();
         expected_output.transitions[6][5] = b.to_owned();
         expected_output.transitions[6][6] = c.to_owned();
-    
+
         expected_output.finite_states = vec![false, true, false, true, true, true, true];
-    
+
         let output = input.get_complement();
-    
+
         assert_eq!(
             *output.as_any().downcast_ref::<AutomataImpl>().unwrap(),
             expected_output

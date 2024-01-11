@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use ndarray::Array2;
 
-
 pub struct Reachability {
     _matrix: Array2<usize>,
     pub as_outcoming: Vec<Vec<usize>>,

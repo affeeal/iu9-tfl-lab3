@@ -23,7 +23,6 @@ pub struct CFG {
     pub start_symbol: NonTerminal,
 }
 
-
 // TODO: buy one more hqd and split this impl into several impls
 impl CFG {
     pub fn new(
@@ -104,11 +103,16 @@ impl CFG {
 
         // Отдельно обрабатываем стартовый символ
         if let Some(start_productions) = self.productions.get(&self.start_symbol) {
-            bnf_representation.push_str(&self.format_productions_to_bnf(&self.start_symbol, start_productions));
+            bnf_representation
+                .push_str(&self.format_productions_to_bnf(&self.start_symbol, start_productions));
         }
 
         // Получаем все нетерминалы, кроме стартового, и сортируем их алфавитно
-        let mut non_terminal_list: Vec<_> = self.non_terminals.iter().filter(|nt| **nt != self.start_symbol).collect();
+        let mut non_terminal_list: Vec<_> = self
+            .non_terminals
+            .iter()
+            .filter(|nt| **nt != self.start_symbol)
+            .collect();
         non_terminal_list.sort_unstable();
 
         // Формируем строки правил для остальных нетерминалов в алфавитном порядке
@@ -123,15 +127,22 @@ impl CFG {
 
     // Вспомогательная функция для форматирования продукций в строку БНФ
     fn format_productions_to_bnf(&self, nt: &NonTerminal, rhs_list: &Vec<Production>) -> String {
-        let mut rhs_strings: Vec<String> = rhs_list.iter().map(|rhs| {
-            rhs.elements.iter().map(|symbol| {
-                if self.non_terminals.contains(symbol) {
-                    format!("<{}>", symbol)
-                } else {
-                    format!("'{}'", symbol)
-                }
-            }).collect::<Vec<_>>().join(" ")
-        }).collect();
+        let mut rhs_strings: Vec<String> = rhs_list
+            .iter()
+            .map(|rhs| {
+                rhs.elements
+                    .iter()
+                    .map(|symbol| {
+                        if self.non_terminals.contains(symbol) {
+                            format!("<{}>", symbol)
+                        } else {
+                            format!("'{}'", symbol)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .collect();
 
         // Сортируем список правил для нетерминала
         rhs_strings.sort_unstable();
@@ -143,7 +154,8 @@ impl CFG {
 
         // Функция для объединения продукций одного нетерминала в одну строку
         let prod_to_string = |prods: &Vec<Production>| -> String {
-            prods.iter()
+            prods
+                .iter()
                 .map(|prod| prod.elements.join(" "))
                 .collect::<Vec<_>>()
                 .join(" | ")
@@ -411,13 +423,18 @@ impl CFG {
         reachable.insert(self.start_symbol.clone());
 
         let mut changed = true;
-        while changed { // Шаг 2
+        while changed {
+            // Шаг 2
             changed = false;
-            for nt in reachable.clone() { // Используем клон, чтобы избежать изменения коллекции во время итерации
+            for nt in reachable.clone() {
+                // Используем клон, чтобы избежать изменения коллекции во время итерации
                 if let Some(prods) = self.productions.get(&nt) {
-                    for prod in prods { // Шаг 1
+                    for prod in prods {
+                        // Шаг 1
                         for symbol in &prod.elements {
-                            if self.non_terminals.contains(symbol) && reachable.insert(symbol.clone()) {
+                            if self.non_terminals.contains(symbol)
+                                && reachable.insert(symbol.clone())
+                            {
                                 changed = true; // Изменилось множество достижимых нетерминалов
                             }
                         }
@@ -432,18 +449,20 @@ impl CFG {
     fn eliminate_unproductive_rules(&mut self) {
         let productive_non_terminals = self.find_productive_non_terminals();
 
-         // Удаляем все продукции содержащие непорождающие нетерминальные символы
-         for prods in self.productions.values_mut() {
+        // Удаляем все продукции содержащие непорождающие нетерминальные символы
+        for prods in self.productions.values_mut() {
             prods.retain(|prod| {
-                prod.elements.iter().all(|symbol| self.terminals.contains(symbol) || productive_non_terminals.contains(symbol))
+                prod.elements.iter().all(|symbol| {
+                    self.terminals.contains(symbol) || productive_non_terminals.contains(symbol)
+                })
             });
         }
 
         // Удаляем пустые продукции, т.е. те, которые больше не выводят никаких нетерминалов
         self.productions.retain(|_nt, prods| !prods.is_empty());
 
-
-        self.non_terminals.retain(|nt| productive_non_terminals.contains(nt));
+        self.non_terminals
+            .retain(|nt| productive_non_terminals.contains(nt));
     }
 
     // Функция для удаления правил с недостижимыми нетерминалами
@@ -468,7 +487,7 @@ impl CFG {
             let mut new_prod_set: Vec<Production> = Vec::new();
 
             for prod in prods {
-                let mut new_prod: Production = Production{
+                let mut new_prod: Production = Production {
                     elements: Vec::new(),
                 };
 
@@ -477,9 +496,18 @@ impl CFG {
                         // Создаем новый нетерминал и добавляем правило Ui -> ui
                         let new_nt = make_unique_non_terminal(symbol);
                         self.non_terminals.insert(new_nt.clone());
-                        let new_rule = Production{elements: vec![symbol.clone()]};
-                        if !new_productions.entry(new_nt.clone()).or_insert_with(Vec::new).contains(&new_rule) {
-                            new_productions.entry(new_nt.clone()).or_insert_with(Vec::new).push(new_rule);
+                        let new_rule = Production {
+                            elements: vec![symbol.clone()],
+                        };
+                        if !new_productions
+                            .entry(new_nt.clone())
+                            .or_insert_with(Vec::new)
+                            .contains(&new_rule)
+                        {
+                            new_productions
+                                .entry(new_nt.clone())
+                                .or_insert_with(Vec::new)
+                                .push(new_rule);
                         }
                         new_prod.elements.push(new_nt);
                     } else {
@@ -549,32 +577,49 @@ impl CFG {
                     if prod.elements.len() == 1 {
                         // В случае A -> a добавляем Aε -> a | ε
                         let prod_epsilon = vec![prod.elements[0].clone()];
-                        prefix_cfg.productions.entry(nt_epsilon.clone())
+                        prefix_cfg
+                            .productions
+                            .entry(nt_epsilon.clone())
                             .or_insert_with(Vec::new)
-                            .push(Production { elements: prod_epsilon });
-                        prefix_cfg.productions.entry(nt_epsilon.clone())
+                            .push(Production {
+                                elements: prod_epsilon,
+                            });
+                        prefix_cfg
+                            .productions
+                            .entry(nt_epsilon.clone())
                             .or_insert_with(Vec::new)
-                            .push(Production { elements: vec![]});
+                            .push(Production { elements: vec![] });
                     } else if prod.elements.len() == 2 {
                         // В случае A -> BC добавляем Aε -> BCε | Bε
-                        let prod_epsilon = vec![prod.elements[0].clone(), format!("{}ε", prod.elements[1])];
-                        prefix_cfg.productions.entry(nt_epsilon.clone())
+                        let prod_epsilon =
+                            vec![prod.elements[0].clone(), format!("{}ε", prod.elements[1])];
+                        prefix_cfg
+                            .productions
+                            .entry(nt_epsilon.clone())
                             .or_insert_with(Vec::new)
-                            .push(Production { elements: prod_epsilon });
+                            .push(Production {
+                                elements: prod_epsilon,
+                            });
 
                         let single_prod_epsilon = vec![format!("{}ε", prod.elements[0])];
-                        prefix_cfg.productions.entry(nt_epsilon.clone())
+                        prefix_cfg
+                            .productions
+                            .entry(nt_epsilon.clone())
                             .or_insert_with(Vec::new)
-                            .push(Production { elements: single_prod_epsilon });
+                            .push(Production {
+                                elements: single_prod_epsilon,
+                            });
                     }
                 }
             }
         }
 
         // Добавляем стартовое правило Sε -> ε
-        prefix_cfg.productions.entry(prefix_cfg.start_symbol.clone())
+        prefix_cfg
+            .productions
+            .entry(prefix_cfg.start_symbol.clone())
             .or_insert_with(Vec::new)
-            .push(Production { elements: vec![]});
+            .push(Production { elements: vec![] });
 
         prefix_cfg
     }
@@ -596,7 +641,11 @@ impl CFG {
                     new_prod.elements.swap(0, 1);
                 }
                 // Добавляем правило в новую грамматику, сохраняя правила A -> a и S -> ε без изменений
-                inverted_cfg.productions.entry(nt.clone()).or_default().push(new_prod);
+                inverted_cfg
+                    .productions
+                    .entry(nt.clone())
+                    .or_default()
+                    .push(new_prod);
             }
         }
 

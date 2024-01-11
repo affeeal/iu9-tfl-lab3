@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 
-use rand::{rngs::ThreadRng, Rng, seq::SliceRandom};
+use rand::{rngs::ThreadRng, seq::SliceRandom, Rng};
 
 use super::{reachability::Reachability, AutomataImpl};
-
 
 pub struct StringGenerator<'a> {
     automata: &'a AutomataImpl,
@@ -39,7 +38,6 @@ impl<'a> StringGenerator<'a> {
         for _ in 0..count {
             let states = self.gen_states_chain();
             let mut words = self.gen_words_chain(&states);
-
 
             strings.push(self.join_words(&words));
         }

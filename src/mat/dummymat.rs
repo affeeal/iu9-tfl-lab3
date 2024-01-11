@@ -1,6 +1,6 @@
 use crate::automata::Automata;
 
-use super::{Mat, EquivalenceCheckResult};
+use super::{EquivalenceCheckResult, Mat};
 
 pub struct DummyMat {
     // ...

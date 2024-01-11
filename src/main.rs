@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use bnf::Grammar;
-use grammars::cfg
-::Production;
+use grammars::cfg::Production;
 
-use crate::{grammars::{GrammarMat, cfg::CFG}, mat::Mat};
+use crate::{
+    grammars::{cfg::CFG, GrammarMat},
+    mat::Mat,
+};
 
 pub mod automata;
 pub mod config;
@@ -31,14 +33,20 @@ fn niam() {
     let mat: GrammarMat = GrammarMat { grammar: &grammar };
 
     mat.check_membership("GATTACAB");
-    println!("{}",mat.check_membership("GATTACA"));
+    println!("{}", mat.check_membership("GATTACA"));
 }
 
 fn main() {
     // Пример строк с правилами грамматики
     // let lines = vec!["S -> a | A | b", "A -> a"];
     // let lines = vec!["S -> A | A S", "A -> a | c | g | t"];
-    let lines = vec!["S -> aXbX|aZ", "X -> aY|bY|", "Y -> X|cc", "Z -> ZX", "D -> d"];
+    let lines = vec![
+        "S -> aXbX|aZ",
+        "X -> aY|bY|",
+        "Y -> X|cc",
+        "Z -> ZX",
+        "D -> d",
+    ];
 
     // Разбор правил грамматики и создание CFG
     let mut cfg = CFG::parse(lines);
@@ -87,9 +95,8 @@ fn main() {
     let grammar: Grammar = input.parse().unwrap();
     let sentence = "gattaca";
 
-
     let mat: GrammarMat = GrammarMat { grammar: &grammar };
 
-    println!("{}",mat.check_membership("gattaca"));
-    println!("{:#?}",grammar.generate());
+    println!("{}", mat.check_membership("gattaca"));
+    println!("{:#?}", grammar.generate());
 }

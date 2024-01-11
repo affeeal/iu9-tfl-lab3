@@ -2,7 +2,10 @@
 
 use bnf::Grammar;
 
-use crate::{mat::{Mat, EquivalenceCheckResult}, automata::Automata};
+use crate::{
+    automata::Automata,
+    mat::{EquivalenceCheckResult, Mat},
+};
 
 pub mod cfg;
 
@@ -15,7 +18,7 @@ impl<'a> Mat for GrammarMat<'a> {
         let mut tree = self.grammar.parse_input(word);
         match tree.next() {
             None => return false,
-            Some(tree) => return true
+            Some(tree) => return true,
         }
         return true;
     }
