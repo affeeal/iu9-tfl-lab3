@@ -6,15 +6,16 @@ mod main_table;
 use std::collections::HashMap;
 
 use crate::automata::{Automata, AutomataImpl, START};
-use crate::config::{ALPHABET, EPSILON};
+use crate::config::EPSILON;
 use crate::mat::{EquivalenceCheckResult, Mat};
 use crate::nl::extended_table::ExtendedTable;
-use crate::nl::main_table::MainTable;
+use crate::nl::main_table::{CoverageMode, MainTable};
 
 // TODO: оптимизировать итерации в check_consistency
+// TODO: использовать BTreeSet заместо HashSet?
 
 pub trait Nl {
-    fn build_automata(&mut self) -> Box<dyn Automata>;
+    fn get_dfa(&mut self) -> Box<dyn Automata>;
 }
 
 pub struct NlImpl<'a> {
@@ -24,7 +25,7 @@ pub struct NlImpl<'a> {
 }
 
 impl<'a> Nl for NlImpl<'a> {
-    fn build_automata(&mut self) -> Box<dyn Automata> {
+    fn get_dfa(&mut self) -> Box<dyn Automata> {
         loop {
             if let CompletenessCheckResult::UncoveredPrefix(prefix) = self.check_completeness() {
                 self.insert_prefix(&prefix);
@@ -36,17 +37,17 @@ impl<'a> Nl for NlImpl<'a> {
                 continue;
             }
 
-            let rfsa = self.build_automata();
-            let dfsa = rfsa.determinize();
+            let nfa = self.build_nfa();
+            let dfa = nfa.determinize();
 
             if let EquivalenceCheckResult::Counterexample(word) =
-                self.mat.check_equivalence(dfsa.as_ref())
+                self.mat.check_equivalence(dfa.as_ref())
             {
                 self.insert_prefix_recursive(&word);
                 continue;
             }
 
-            break dfsa;
+            break dfa;
         }
     }
 }
@@ -71,8 +72,9 @@ impl<'a> NlImpl<'a> {
     }
 
     fn insert_prefix_recursive(&mut self, prefix: &str) {
-        for i in 1..prefix.len() {
-            self.insert_prefix(&prefix[0..i]);
+        for i in 1..=prefix.len() {
+            let word = &prefix[0..i];
+            self.insert_prefix(word);
         }
     }
 
@@ -89,11 +91,14 @@ impl<'a> NlImpl<'a> {
     fn check_completeness(&self) -> CompletenessCheckResult {
         for prefix in &self.extended_table.prefixes {
             let membership_suffixes = self
-                .main_table
+                .extended_table
                 .prefix_to_membership_suffixes
                 .get(prefix)
                 .unwrap();
-            if !self.main_table.is_covered(prefix, membership_suffixes) {
+            if !self
+                .main_table
+                .is_covered(prefix, membership_suffixes, CoverageMode::Inclusive)
+            {
                 return CompletenessCheckResult::UncoveredPrefix(prefix.to_owned());
             }
         }
@@ -108,7 +113,7 @@ impl<'a> NlImpl<'a> {
                     continue;
                 }
 
-                for letter in ALPHABET.chars() {
+                for letter in self.mat.get_alphabet().chars() {
                     let new_prefix_1 = format!("{prefix_1}{letter}");
                     let new_prefix_2 = format!("{prefix_2}{letter}");
 
@@ -137,7 +142,7 @@ impl<'a> NlImpl<'a> {
         ConsistencyCheckResult::Ok
     }
 
-    fn build_automata(&self) -> Box<dyn Automata> {
+    fn build_nfa(&self) -> Box<dyn Automata> {
         let mut automata = AutomataImpl::new(self.main_table.basic_prefixes.len() + 1);
         let prefix_to_index = self.enumerate_basic_prefixes();
 
@@ -148,50 +153,48 @@ impl<'a> NlImpl<'a> {
                 .unwrap(),
         );
         for prefix in &epsilon_absorbed_prefixes {
-            let prefix_index = prefix_to_index.get(prefix).unwrap();
-            automata.transitions[START][*prefix_index] = Some(EPSILON.to_owned());
+            let index = prefix_to_index.get(prefix).unwrap();
+            automata.transitions[START][*index].insert(EPSILON.to_owned());
         }
 
-        for prefix in &self.main_table.basic_prefixes {
-            let prefix_index = prefix_to_index.get(prefix).unwrap();
-            for letter in ALPHABET.chars() {
-                let prefix_extension = format!("{prefix}{letter}");
+        for (prefix, index) in &prefix_to_index {
+            for letter in self.mat.get_alphabet().chars() {
+                let extension = format!("{prefix}{letter}");
                 let extension_absorbed_prefixes = self.main_table.get_absorbed_basic_prefixes(
                     self.extended_table
                         .prefix_to_membership_suffixes
-                        .get(&prefix_extension)
+                        .get(&extension)
                         .unwrap(),
                 );
                 for absorbed_prefix in &extension_absorbed_prefixes {
                     let absorbed_prefix_index = prefix_to_index.get(absorbed_prefix).unwrap();
-                    automata.transitions[*prefix_index][*absorbed_prefix_index] =
-                        Some(letter.to_string());
+                    automata.transitions[*index][*absorbed_prefix_index].insert(letter.to_string());
                 }
             }
         }
 
-        let epsilon_membership_basic_prefixes = self
+        let epsilon_membership_prefixes = self
             .main_table
             .suffix_to_membership_prefixes
             .get(EPSILON)
             .unwrap()
             .intersection(&self.main_table.basic_prefixes);
-        for prefix in epsilon_membership_basic_prefixes {
-            let prefix_index = prefix_to_index.get(prefix).unwrap();
-            automata.finite_states[*prefix_index] = true;
+        for prefix in epsilon_membership_prefixes {
+            let index = prefix_to_index.get(prefix).unwrap();
+            automata.finite_states[*index] = true;
         }
 
         Box::new(automata)
     }
 
     fn enumerate_basic_prefixes(&self) -> HashMap<String, usize> {
-        let mut basic_prefix_to_index = HashMap::new();
+        let mut prefix_to_index = HashMap::new();
 
         // Индекс 0 зарезервирован для стартового состояния
         for (i, prefix) in self.main_table.basic_prefixes.iter().enumerate() {
-            basic_prefix_to_index.insert(prefix.to_owned(), i + 1);
+            prefix_to_index.insert(prefix.to_owned(), i + 1);
         }
 
-        basic_prefix_to_index
+        prefix_to_index
     }
 }

@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use bnf::Grammar;
-use grammars::cfg::Production;
 
 use crate::{
     grammars::{cfg::CFG, GrammarMat},

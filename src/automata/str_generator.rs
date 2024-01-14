@@ -100,12 +100,12 @@ impl<'a> StringGenerator<'a> {
 
         while let Some((word_prefix, state)) = states_deq.pop_front() {
             let mut outcoming = Vec::<(String, usize)>::new();
-            for (i, letter_opt) in self.automata.transitions[state].iter().enumerate() {
+            for (i, letters) in self.automata.transitions[state].iter().enumerate() {
                 if !self.reachability.as_incoming[*to].contains(&i) && to.ne(&i) {
                     continue;
                 }
 
-                if let Some(letter) = letter_opt {
+                for letter in letters {
                     outcoming.push((word_prefix.clone() + &letter.to_string(), i));
                 }
             }

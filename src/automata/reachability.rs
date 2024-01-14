@@ -24,8 +24,8 @@ impl Reachability {
     fn get_matrix(a: &super::AutomataImpl) -> Array2<usize> {
         let mut adjacency_vec = vec![0; a.size * a.size];
         for (i, row) in a.transitions.iter().enumerate() {
-            for (j, letter_opt) in row.iter().enumerate() {
-                if letter_opt.is_some() {
+            for (j, letters) in row.iter().enumerate() {
+                for letter in letters {
                     adjacency_vec[i * a.size + j] = 1;
                 }
             }

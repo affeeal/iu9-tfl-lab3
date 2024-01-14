@@ -1,11 +1,7 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::config::{ALPHABET, EPSILON};
+use crate::config::EPSILON;
 use crate::mat::Mat;
-
-// TODO? хранить в значениях prefix_to_membership_suffixes не строки, а std::rc::Rc;
-// TODO? использовать std::collections::BTreeSet для ускорения булевых операций;
 
 pub struct ExtendedTable<'a> {
     mat: &'a dyn Mat,
@@ -30,7 +26,7 @@ impl<'a> ExtendedTable<'a> {
     }
 
     pub fn insert_prefix(&mut self, prefix: &str) {
-        for letter in ALPHABET.chars() {
+        for letter in self.mat.get_alphabet().chars() {
             let new_prefix = format!("{prefix}{letter}");
             self.insert_prefix_impl(&new_prefix);
         }
@@ -49,7 +45,6 @@ impl<'a> ExtendedTable<'a> {
                 membership_suffixes.insert(suffix.to_owned());
             }
         }
-
         self.prefix_to_membership_suffixes
             .insert(prefix.to_owned(), membership_suffixes);
     }

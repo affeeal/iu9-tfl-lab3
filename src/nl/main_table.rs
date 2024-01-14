@@ -1,11 +1,7 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::config::EPSILON;
 use crate::mat::Mat;
-
-// TODO? хранить в значениях basic_prefixes, prefix_to_membership_suffixes и suffix_to_membership_prefixes не строки, а ссылки;
-// TODO? использовать BTreeSet заместо HashSet для ускорения булевых операций;
 
 pub struct MainTable<'a> {
     mat: &'a dyn Mat,
@@ -14,6 +10,11 @@ pub struct MainTable<'a> {
     pub suffixes: HashSet<String>,
     pub prefix_to_membership_suffixes: HashMap<String, HashSet<String>>,
     pub suffix_to_membership_prefixes: HashMap<String, HashSet<String>>,
+}
+
+pub enum CoverageMode {
+    Inclusive,
+    Exclusive,
 }
 
 enum EquivalentBasicPrefixSearchResult {
@@ -51,21 +52,21 @@ impl<'a> MainTable<'a> {
                 membership_prefixes.insert(prefix.to_owned());
             }
         }
+        self.prefix_to_membership_suffixes
+            .insert(prefix.to_owned(), membership_suffixes);
 
+        let membership_suffixes = self.prefix_to_membership_suffixes.get(prefix).unwrap();
         if let EquivalentBasicPrefixSearchResult::Found(equivalent_prefix) =
-            self.find_equivalent_basic_prefix(&membership_suffixes)
+            self.find_equivalent_basic_prefix(membership_suffixes)
         {
             if self.is_shorter(prefix, &equivalent_prefix) {
                 self.basic_prefixes.remove(&equivalent_prefix);
                 self.basic_prefixes.insert(prefix.to_owned());
             }
-        } else if !self.is_covered(prefix, &membership_suffixes) {
+        } else if !self.is_covered(prefix, membership_suffixes, CoverageMode::Exclusive) {
             self.basic_prefixes.insert(prefix.to_owned());
             self.cleanup_basic_prefixes();
         }
-
-        self.prefix_to_membership_suffixes
-            .insert(prefix.to_owned(), membership_suffixes);
     }
 
     fn find_equivalent_basic_prefix(
@@ -90,23 +91,40 @@ impl<'a> MainTable<'a> {
         first_prefix.len() < second_prefix.len()
     }
 
-    pub fn is_covered(&self, prefix: &str, membership_suffixes: &HashSet<String>) -> bool {
+    pub fn is_covered(
+        &self,
+        prefix: &str,
+        membership_suffixes: &HashSet<String>,
+        mode: CoverageMode,
+    ) -> bool {
+        if membership_suffixes.is_empty() && matches!(mode, CoverageMode::Exclusive) {
+            return false;
+        }
+
         let non_membership_suffixes = self.suffixes.difference(membership_suffixes);
 
-        let mut unfit_prefixes = HashSet::new();
-        unfit_prefixes.insert(prefix.to_owned());
+        let mut forbidden_prefixes = HashSet::new();
+        if let CoverageMode::Exclusive = mode {
+            forbidden_prefixes.insert(prefix.to_owned());
+        }
 
         for suffix in non_membership_suffixes {
             let membership_prefixes = self.suffix_to_membership_prefixes.get(suffix).unwrap();
             for prefix in membership_prefixes {
-                unfit_prefixes.insert(prefix.to_owned());
+                forbidden_prefixes.insert(prefix.to_owned());
             }
         }
 
         for suffix in membership_suffixes {
-            let membership_prefixes = self.suffix_to_membership_prefixes.get(suffix).unwrap();
+            let mut membership_prefixes = self
+                .suffix_to_membership_prefixes
+                .get(suffix)
+                .unwrap()
+                .clone();
+            membership_prefixes.retain(|prefix| self.basic_prefixes.contains(prefix));
+
             if membership_prefixes
-                .difference(&unfit_prefixes)
+                .difference(&forbidden_prefixes)
                 .next()
                 .is_none()
             {
@@ -118,11 +136,11 @@ impl<'a> MainTable<'a> {
     }
 
     fn cleanup_basic_prefixes(&mut self) {
-        let mut not_basic_prefixes_anymore = Vec::new();
+        let mut not_basic_prefixes_anymore = Vec::<String>::new();
 
         for prefix in &self.basic_prefixes {
             let membership_suffixes = self.prefix_to_membership_suffixes.get(prefix).unwrap();
-            if self.is_covered(prefix, membership_suffixes) {
+            if self.is_covered(prefix, membership_suffixes, CoverageMode::Exclusive) {
                 not_basic_prefixes_anymore.push(prefix.to_owned());
             }
         }
@@ -146,9 +164,19 @@ impl<'a> MainTable<'a> {
                 membership_suffixes.insert(suffix.to_owned());
             }
         }
-
         self.suffix_to_membership_prefixes
             .insert(suffix.to_owned(), membership_prefixes);
+
+        self.rebuild_basic_prefixes();
+    }
+
+    fn rebuild_basic_prefixes(&mut self) {
+        for (prefix, membership_suffixes) in &self.prefix_to_membership_suffixes {
+            if !self.is_covered(prefix, membership_suffixes, CoverageMode::Exclusive) {
+                self.basic_prefixes.insert(prefix.to_owned());
+            }
+        }
+        self.cleanup_basic_prefixes();
     }
 
     // NOTE: наивная реализация.
@@ -156,18 +184,15 @@ impl<'a> MainTable<'a> {
         &self,
         source_membership_suffixes: &HashSet<String>,
     ) -> HashSet<String> {
-        let mut absorbed_basic_prefixes = HashSet::new();
+        let mut absorbed_prefixes = HashSet::new();
 
-        for basic_prefix in &self.basic_prefixes {
-            let membership_suffixes = self
-                .prefix_to_membership_suffixes
-                .get(basic_prefix)
-                .unwrap();
+        for prefix in &self.basic_prefixes {
+            let membership_suffixes = self.prefix_to_membership_suffixes.get(prefix).unwrap();
             if membership_suffixes.is_subset(source_membership_suffixes) {
-                absorbed_basic_prefixes.insert(basic_prefix.to_owned());
+                absorbed_prefixes.insert(prefix.to_owned());
             }
         }
 
-        absorbed_basic_prefixes
+        absorbed_prefixes
     }
 }
